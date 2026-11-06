@@ -243,6 +243,13 @@ def move_smoothly(
             if max(abs(present[key] - goal[key]) for key in goal) < MOVE_TOLERANCE:
                 return True
         time.sleep(0.02)
+    present = read_present(follower)
+    for key in goal:
+        if abs(present[key] - goal[key]) >= MOVE_TOLERANCE:
+            print(
+                f"  届かない関節: {key} 目標 {goal[key]:+.1f} 現在 {present[key]:+.1f}",
+                flush=True,
+            )
     return False
 
 
@@ -583,7 +590,10 @@ def main() -> int:
                 cv2.destroyAllWindows()
             except cv2.error:
                 pass
-        follower.disconnect()  # 表示の後始末で失敗しても必ず切断する
+        try:
+            follower.disconnect()  # 表示の後始末で失敗しても必ず切断する
+        except Exception as error:  # 通信が切れていると切断も失敗する
+            print(f"切断中にエラー: {error}", flush=True)
     return 0
 
 
