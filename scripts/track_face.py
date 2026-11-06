@@ -232,16 +232,25 @@ def move_smoothly(
     duration = max(1.0, math.pi / 2 * distance / speed)
     t0 = time.perf_counter()
     deadline = t0 + duration + timeout_s
+    next_report = t0
     while time.perf_counter() < deadline:
-        ratio = min((time.perf_counter() - t0) / duration, 1.0)
+        now = time.perf_counter()
+        ratio = min((now - t0) / duration, 1.0)
         eased = (1 - math.cos(math.pi * ratio)) / 2
         follower.send_action(
             {key: start[key] + (goal[key] - start[key]) * eased for key in goal}
         )
         if ratio >= 1.0:
             present = read_present(follower)
-            if max(abs(present[key] - goal[key]) for key in goal) < MOVE_TOLERANCE:
+            worst = max(abs(present[key] - goal[key]) for key in goal)
+            if now >= next_report:
+                print(f"  目標へ収束中: 最大ずれ {worst:.1f} 度", flush=True)
+                next_report = now + 1.0
+            if worst < MOVE_TOLERANCE:
                 return True
+        elif now >= next_report:
+            print(f"  移動中: {ratio:.0%}", flush=True)
+            next_report = now + 1.0
         time.sleep(0.02)
     present = read_present(follower)
     for key in goal:
