@@ -168,10 +168,13 @@ uv run lerobot-calibrate \
 リーダーも同じ手順です。
 リーダーはトルクが切れているため、手で軽く動かせます。
 
-キャリブレーション結果は次の場所に保存されます。
+キャリブレーション結果はリポジトリの `calibration/` に保存され、git で管理します。
+lerobot が読み書きする `~/.cache/huggingface/lerobot/calibration` は、このディレクトリへのシンボリックリンクにしてあります。
+新しい PC では、最初に次を実行してリンクを作ります。
 
-```
-~/.cache/huggingface/lerobot/calibration/
+```bash
+mkdir -p ~/.cache/huggingface/lerobot
+ln -s "$PWD/calibration" ~/.cache/huggingface/lerobot/calibration
 ```
 
 同じ `id` で再実行すると、保存済みの設定を使うか、新しくやり直すかを聞かれます。
@@ -384,3 +387,29 @@ uv run python scripts/track_face.py
 同じ最終目標を 1 回書けば、荷重のかかる肘でも 0.6 秒で約 9 度動きます。
 目標は少しずつ更新して同じ値を書き続ける方式にしてください。
 `track_face.py` はこの方式（コミット方式）で実装しています。
+
+## 実機と sim の応答を比べる
+
+tachyon の MuJoCo の位置サーボが実機とどれだけ違うか（垂れ、遅れ、追従できる速さ）を、関節ごとのステップとチャープで測ります。
+
+```bash
+uv run python scripts/step_response.py
+uv run python scripts/compare_step_response.py outputs/step_response/<日時>.csv
+```
+
+- 1 本目は待機姿勢から試験姿勢（pan 0、lift -40、elbow 40、wrist 0）へ移り、pan、lift、elbow、wrist を1つずつ動かして、約 100 秒で待機姿勢へ戻ります
+- 試験姿勢ではハンドが土台の前方約 20cm、高さ約 23cm に来ます（sim での計算）。前と左右を空けてから Enter を押します
+- 指令とのずれが 30 度を超えたまま 0.5 秒続くと止めて戻ります。戻る途中で通信が切れたときは、アームが落ちないようにトルクを入れたまま終了します
+- 2 本目は記録と `scripts/step_replay.py` を tachyon へ送り、record.py と同じ重力補償つきのサーボと、重力補償なしのサーボで同じ指令を再生します。結果は記録の隣の `<日時>_report.html` に図と表で出ます
+- 実機の度を sim のラジアンにそのまま読み替えています（どちらも可動域の中央が 0）。wrist_roll は待機姿勢の -179 度が sim の可動域の外なので、sim では端の -157 度に置かれます
+- `--dry-run` を付けると実機につながずに計画だけを書きます。それを 2 本目に渡すと、sim だけで動きを確かめられます
+
+### sim のサーボを記録に合わせる
+
+`scripts/fit_servo.py` を tachyon の `~/so101/mujoco` に置いて動かすと、関節ごとに kp、damping、frictionloss、むだ時間を記録に合わせ、記録の隣に `<日時>_servo.json` を書きます（重力補償なし、4 関節を並列で約 10 分）。
+
+```bash
+cd ~/so101/mujoco && ../.venv/bin/python fit_servo.py --real ../outputs/step_response/<日時>.csv
+```
+
+その JSON を実機の記録の隣に置いて比較し直すと、レポートに「sim 同定後」が加わります。

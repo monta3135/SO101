@@ -187,4 +187,4 @@ sudo ./scripts/pin_ports.sh leader /dev/ttyACM1 follower /dev/ttyACM0
 
 - [ ] 電源を切って入れ直しても、同じポート名で接続できる
 - [ ] リーダーを動かしたときにフォロワーが震えない
-- [ ] キャリブレーション結果が `~/.cache/huggingface/lerobot/calibration/` に保存されている
+- [ ] キャリブレーション結果が リポジトリの `calibration/` に保存されている（`~/.cache/huggingface/lerobot/calibration` はそこへのリンク）

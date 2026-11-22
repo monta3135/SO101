@@ -100,6 +100,10 @@ SO101/
 │   ├── capture_pose.py   絶対角度で姿勢を指定して撮影、顔検出
 │   ├── scan_for_face.py  姿勢を組み合わせて顔が写る向きを探す
 │   ├── track_face.py     カメラで顔をリアルタイム追跡
+│   ├── step_response.py  関節ごとのステップとチャープの応答を記録
+│   ├── step_replay.py    記録を tachyon の MuJoCo で再生（compare が送って動かす）
+│   ├── compare_step_response.py  実機と sim の応答を重ねて比べる
+│   ├── fit_servo.py      記録に合わせて sim のサーボを同定（tachyon で動かす）
 │   ├── install_udev.sh   USB シリアルの権限を設定
 │   ├── pin_ports.sh      アームごとに固定のポート名を割り当て
 │   ├── status.sh         接続状態をまとめて表示
