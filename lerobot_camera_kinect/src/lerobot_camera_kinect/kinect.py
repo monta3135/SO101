@@ -19,6 +19,7 @@ from numpy.typing import NDArray
 from lerobot.cameras.camera import Camera
 from lerobot.cameras.configs import ColorMode
 
+from . import usb_bandwidth
 from .config_kinect import KinectCameraConfig
 
 RESOLUTION_MEDIUM = 1
@@ -89,25 +90,35 @@ class KinectCamera(Camera):
         if _owner is not None and _owner is not self and _owner.is_connected:
             raise RuntimeError(f"{_owner} がすでに Kinect を使っています (sync API では1台のみ)。")
         _lib()
-        _owner = self
-        self.error = None
-        self.stop_event = threading.Event()
-        self.thread = threading.Thread(target=self._read_loop, name=f"{self}_read_loop", daemon=True)
-        self.thread.start()
+        # usb_bandwidth.release() で未設定にされていたら、Kinect として使える状態に戻す
+        changed = usb_bandwidth.acquire()
+        if any(before != after for before, after in changed.values()):
+            time.sleep(1.5)  # 設定し直した直後は、カーネルのドライバが付き直すのを待たないと映像が来ない
+        # 設定し直した直後の1回目は映像が来ないことがあるので、1度だけやり直す
+        for attempt in range(2):
+            _owner = self
+            self.error = None
+            self.stop_event = threading.Event()
+            self.thread = threading.Thread(target=self._read_loop, name=f"{self}_read_loop", daemon=True)
+            self.thread.start()
 
-        # 最初のフレームが届くまで待つ (USB の初期化で数秒かかる)
-        deadline = time.perf_counter() + 10.0
-        while time.perf_counter() < deadline:
-            with self.frame_lock:
-                ready = (not self.use_rgb or self.latest_color_frame is not None) and (
-                    not self.use_depth or self.latest_depth_frame is not None
-                )
-            if ready or self.error:
+            # 最初のフレームが届くまで待つ (USB の初期化で数秒かかる)
+            deadline = time.perf_counter() + 6.0
+            while time.perf_counter() < deadline:
+                with self.frame_lock:
+                    ready = (not self.use_rgb or self.latest_color_frame is not None) and (
+                        not self.use_depth or self.latest_depth_frame is not None
+                    )
+                if ready or self.error:
+                    break
+                time.sleep(0.05)
+            if ready and not self.error:
                 break
-            time.sleep(0.05)
-        if self.error or not ready:
+            error = self.error or "timeout"
             self.disconnect()
-            raise ConnectionError(f"{self} からフレームが届きません: {self.error or 'timeout'}")
+            if attempt == 1:
+                raise ConnectionError(f"{self} からフレームが届きません: {error}")
+            time.sleep(1.0)
         if warmup:
             time.sleep(self.warmup_s)
 
