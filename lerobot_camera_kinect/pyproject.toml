@@ -1,0 +1,14 @@
+[project]
+name = "lerobot_camera_kinect"
+version = "0.1.0"
+description = "Xbox 360 Kinect (v1) を libfreenect 経由で LeRobot のカメラとして使う。RGB に揃えた深度 (mm) も出す。"
+requires-python = ">=3.10"
+dependencies = ["lerobot>=0.6.0", "numpy"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = ["lerobot_camera_kinect"]
